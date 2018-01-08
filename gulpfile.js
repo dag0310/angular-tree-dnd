@@ -23,7 +23,7 @@ $.karma = require('karma');
 
 gulp.task(
     'build', ['styles', 'jshint', 'uglify'], function () {
-        return gulp.start('jshint-dist', 'test');
+        return gulp.start('jshint-dist');
     }
 );
 
