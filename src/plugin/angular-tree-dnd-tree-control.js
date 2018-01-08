@@ -111,7 +111,7 @@ angular.module('ntt.TreeDnD')
                     remove_node:                       function (node) {
                         node = node || tree.selected_node;
                         if (node) {
-                            if (node.__parent_real__) {
+                            if (node.__parent_real__ !== null) {
                                 _parent = tree.get_parent(node).__children__;
                             } else {
                                 _parent = scope.treeData;
