@@ -3,6 +3,9 @@ angular.module('ntt.TreeDnD')
     '$TreeDnDDrag', [
         '$timeout', '$TreeDnDHelper',
         function ($timeout, $TreeDnDHelper) {
+            var _fnDragEnd;
+            var holderWasShown = false;
+
             var _offset,
                 _fnPlaceHolder = function (e, $params) {
                     if ($params.placeElm) {
@@ -16,6 +19,8 @@ angular.module('ntt.TreeDnD')
                     return false;
                 },
                 _fnDragStart = function (e, $params) {
+                    holderWasShown = false;
+
                     if (!$params.hasTouch && (e.button === 2 || e.which === 3)) {
                         // disable right click
                         return;
@@ -370,12 +375,31 @@ angular.module('ntt.TreeDnD')
                             return true;
                         };
 
+                        var abortDrag = function () {
+                            holderWasShown = false;
+                            if (_$scope.enabledStatus) {
+                                _$scope.hideStatus();
+                            }
+                            _$scope.$$apply = false;
+                            _fnDragEnd(e, $params);
+                        };
+
                         if (angular.isFunction(targetScope.getScopeNode)) {
                             targetScope = targetScope.getScopeNode();
+
                             if (!fnSwapTree()) {
                                 return;
                             }
                         } else {
+                            if (holderWasShown) {
+                                setTimeout(function () {
+                                    // setTimeout is necessary because otherwise the placeholder will not be deleted in some cases
+                                    // see: https://stackoverflow.com/questions/779379/why-is-settimeoutfn-0-sometimes-useful
+                                    treeScope.placeElm.remove();
+                                    abortDrag();
+                                }, 0);
+                            }
+
                             if (targetScope.$type === 'TreeDnDNodes' || targetScope.$type === 'TreeDnD') {
                                 if (targetScope.tree_nodes) {
                                     if (targetScope.tree_nodes.length === 0) {
@@ -392,6 +416,8 @@ angular.module('ntt.TreeDnD')
                                 return;
                             }
                         }
+                    } else {
+                        holderWasShown = true;
                     }
 
                     if ($params.pos.dirAx && !isSwapped || isHolder) {
@@ -595,6 +621,8 @@ angular.module('ntt.TreeDnD')
                     }
                 },
                 _fnDragEnd = function (e, $params) {
+                    holderWasShown = false;
+
                     e.preventDefault();
                     if ($params.dragElm) {
                         var _passed = false,
