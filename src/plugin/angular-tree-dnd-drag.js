@@ -5,6 +5,13 @@ angular.module('ntt.TreeDnD')
         function ($timeout, $TreeDnDHelper) {
             var _fnDragEnd;
             var holderWasShown = false;
+            var nodesSelected = [];
+            var lastSelectedNode = null;
+
+            var resetNodesSelected = function () {
+                nodesSelected.forEach(function (node) { node.__selected = false; });
+                nodesSelected = [];
+            };
 
             var _offset,
                 _fnPlaceHolder = function (e, $params) {
@@ -39,6 +46,36 @@ angular.module('ntt.TreeDnD')
                     // }
 
                     if (eventScope.$type !== 'TreeDnDNodeHandle') { // If the node has a handle, then it should be clicked by the handle
+                        var currentNode = eventScope.$parent.$modelValue;
+                        if (eventScope.hasMultiSelect && currentNode && currentNode.parentId !== null) {
+                            if (e.ctrlKey) {
+                                lastSelectedNode = currentNode;
+                                currentNode.__selected = !currentNode.__selected;
+                            } else if (e.shiftKey) {
+                                var groupNodes = eventScope.$parent.$parent.$parent.$modelValue.__children__;
+                                var lastSelectedNodeIdx = (lastSelectedNode && groupNodes.includes(lastSelectedNode)) ? groupNodes.indexOf(lastSelectedNode) : 0;
+                                var newSelectedNodeIdx = groupNodes.indexOf(currentNode);
+                                var lowerIdx = lastSelectedNodeIdx < newSelectedNodeIdx ? lastSelectedNodeIdx : newSelectedNodeIdx;
+                                var higherIdx = lastSelectedNodeIdx > newSelectedNodeIdx ? lastSelectedNodeIdx : newSelectedNodeIdx;
+
+                                resetNodesSelected();
+
+                                for (var idx = lowerIdx; idx <= higherIdx; idx++) {
+                                    groupNodes[idx].__selected = true;
+                                    nodesSelected.push(groupNodes[idx]);
+                                }
+                            } else {
+                                lastSelectedNode = currentNode;
+                                resetNodesSelected();
+                                currentNode.__selected = true;
+                            }
+
+                            if (nodesSelected.every(function (node) { return node !== currentNode; }) && currentNode.__selected) {
+                                nodesSelected.push(currentNode);
+                            } else if (nodesSelected.includes(currentNode) && !currentNode.__selected) {
+                                nodesSelected.splice(nodesSelected.indexOf(currentNode), 1);
+                            }
+                        }
                         return;
                     }
 
@@ -185,6 +222,11 @@ angular.module('ntt.TreeDnD')
                             'top':  eventObj.pageY - $params.pos.offsetY + 'px'
                         }
                     );
+
+                    if (nodesSelected.length > 1) {
+                        $params.dragElm.append(angular.element('<div class="numBadge">' + nodesSelected.length + '</div>'));
+                    }
+
                     // moving item with descendant
                     $params.$document.find('body').append($params.dragElm);
                     if (_$scope.$callbacks.droppable()) {
@@ -398,6 +440,7 @@ angular.module('ntt.TreeDnD')
                                     treeScope.placeElm.remove();
                                     abortDrag();
                                 }, 0);
+                                return;
                             }
 
                             if (targetScope.$type === 'TreeDnDNodes' || targetScope.$type === 'TreeDnD') {
@@ -667,6 +710,9 @@ angular.module('ntt.TreeDnD')
                         if (_$scope.$$apply) {
                             _$scope.$safeApply(
                                 function () {
+                                    $params.dragInfo.__multipleNodes = nodesSelected;
+                                    resetNodesSelected();
+
                                     _status = _$scope.$callbacks.dropped(
                                         $params.dragInfo,
                                         _passed,

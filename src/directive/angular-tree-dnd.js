@@ -16,7 +16,7 @@ angular.module('ntt.TreeDnD')
                         $scope.indent_unit = 'px';
                         $scope.$tree_class = 'table';
                         $scope.primary_key = '__uid__';
-
+                        $scope.hasMultiSelect = $attrs.hasMultiSelect === 'true';
 
                         $scope.$type = 'TreeDnD';
                         // $scope.enabledFilter = null;
