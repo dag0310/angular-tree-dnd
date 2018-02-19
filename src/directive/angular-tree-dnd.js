@@ -589,7 +589,7 @@ angular.module('ntt.TreeDnD')
                                 var _data,
                                     _len,
                                     _tree_nodes = [];
-                                console.log('---------');
+//                                console.log('---------');
                                 if (angular.isDefined(oData)) {
                                     if (!angular.isArray(oData) || oData.length === 0) {
                                         return [];
