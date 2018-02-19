@@ -721,7 +721,9 @@ angular.module('ntt.TreeDnD')
                                 }
                             );
                         } else {
-                            _fnBindDrag($params);
+                            if ($params && $params.pos === null) {
+                                _fnBindDrag($params);
+                            }
                         }
 
                         _$scope.$safeApply(
