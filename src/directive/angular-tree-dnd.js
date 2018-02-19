@@ -16,7 +16,7 @@ angular.module('ntt.TreeDnD')
                         $scope.indent_unit = 'px';
                         $scope.$tree_class = 'table';
                         $scope.primary_key = '__uid__';
-
+                        $scope.hasMultiSelect = $attrs.hasMultiSelect === 'true';
 
                         $scope.$type = 'TreeDnD';
                         // $scope.enabledFilter = null;
@@ -589,7 +589,7 @@ angular.module('ntt.TreeDnD')
                                 var _data,
                                     _len,
                                     _tree_nodes = [];
-                                console.log('---------');
+//                                console.log('---------');
                                 if (angular.isDefined(oData)) {
                                     if (!angular.isArray(oData) || oData.length === 0) {
                                         return [];
