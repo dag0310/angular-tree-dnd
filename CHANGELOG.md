@@ -1,3 +1,9 @@
+## 3.2.1
+  * Fixed:
+    * Do not drag selected nodes when dragged node is not part of the selected group
+  * Added:
+    * Add public reset selected nodes method for tree data control object
+
 ## 3.2.0
   * Fixed:
     * Only bind drag event once, not again after aborting a drag
