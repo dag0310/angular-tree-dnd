@@ -56,7 +56,474 @@
                 '-1': 'glyphicon glyphicon-file'
             }
         }
-    ).directive(
+    ).factory(
+    '$TreeDnDFilter', [
+        '$filter', function ($filter) {
+            var _iF, _lenF, _keysF,
+                _filter,
+                _state,
+                for_all_descendants = function for_all_descendants(options, node, fieldChild, fnBefore, fnAfter, parentPassed) {
+                    if (!angular.isFunction(fnBefore)) {
+                        return null;
+                    }
+
+                    var _i, _len, _nodes,
+                        _nodePassed = fnBefore(options, node),
+                        _childPassed = false;
+
+                    if (angular.isDefined(node[fieldChild])) {
+                        _nodes = node[fieldChild];
+                        _len = _nodes.length;
+                        for (_i = 0; _i < _len; _i++) {
+                            _childPassed = for_all_descendants(
+                                options,
+                                _nodes[_i],
+                                fieldChild,
+                                fnBefore,
+                                fnAfter,
+                                _nodePassed || parentPassed
+                            ) || _childPassed;
+                        }
+                    }
+
+                    if (angular.isFunction(fnAfter)) {
+                        fnAfter(options, node, _nodePassed === true, _childPassed === true, parentPassed === true);
+                    }
+
+                    return _nodePassed || _childPassed;
+                },
+                // Check data by filter
+                _fnCheck = function _fnCheck(callback, check) {
+                    if (angular.isUndefinedOrNull(check) || angular.isArray(check)) {
+                        return null;
+                    }
+
+                    if (angular.isFunction(callback)) {
+                        return callback(check, $filter);
+                    } else {
+                        if (typeof callback === 'boolean') {
+                            check = !!check;
+                            return check === callback;
+                        } else if (angular.isDefined(callback)) {
+                            try {
+                                var _regex = new RegExp(callback);
+                                return _regex.test(check);
+                            }
+                            catch (err) {
+                                if (typeof check === 'string') {
+                                    return check.indexOf(callback) > -1;
+                                } else {
+                                    return null;
+                                }
+                            }
+                        } else {
+                            return null;
+                        }
+                    }
+                },
+                _fnProccess = function _fnProccess(node, condition, isAnd) {
+                    if (angular.isArray(condition)) {
+                        return for_each_filter(node, condition, isAnd);
+                    } else {
+                        var _key = condition.field,
+                            _callback = condition.callback,
+                            _iO, _keysO, _lenO;
+
+                        if (_key === '_$') {
+                            _keysO = Object.keys(node);
+                            _lenO = _keysO.length;
+                            for (_iO = 0; _iO < _lenO; _iO++) {
+                                if (_fnCheck(_callback, node[_keysO[_iO]])) {
+                                    return true;
+                                }
+                            }
+                        } else if (angular.isDefined(node[_key])) {
+                            return _fnCheck(_callback, node[_key]);
+                        }
+                    }
+                },
+                for_each_filter = function for_each_filter(node, conditions, isAnd) {
+                    var i, len = conditions.length, passed = false;
+                    if (len === 0) {
+                        return null;
+                    }
+
+                    for (i = 0; i < len; i++) {
+                        if (_fnProccess(node, conditions[i], !isAnd)) {
+                            passed = true;
+                            // if condition `or` then return;
+                            if (!isAnd) {
+                                return true;
+                            }
+                        } else {
+
+                            // if condition `and` and result in fnProccess = false then return;
+                            if (isAnd) {
+                                return false;
+                            }
+                        }
+                    }
+
+                    return passed;
+                },
+
+                // Will call _fnAfter to clear data no need
+                _fnAfter = function _fnAfter(options, node, isNodePassed, isChildPassed, isParentPassed) {
+                    if (isNodePassed === true) {
+                        node.__filtered__ = true;
+                        node.__filtered_visible__ = true;
+                        return; //jmp
+                    } else if ((isChildPassed === true && options.showParent === true)
+                               || (isParentPassed === true && options.showChild === true)) {
+                        node.__filtered__ = false;
+                        node.__filtered_visible__ = true;
+                        return; //jmp
+                    }
+
+                    // remove attr __filtered__
+                    delete(node.__filtered__);
+                    delete(node.__filtered_visible__);
+                },
+                _fnBefore = function _fnBefore(options, node) {
+                    if (options.filter.length === 0) {
+                        return true;
+                    } else {
+                        return _fnProccess(node, options.filter, options.beginAnd || false);
+                    }
+                },
+                _fnConvert = function _fnConvert(filters) {
+                    // convert filter object to array filter
+                    if (angular.isObject(filters) && !angular.isArray(filters)) {
+                        _keysF = Object.keys(filters);
+                        _lenF = _keysF.length;
+                        _filter = [];
+
+                        if (_lenF > 0) {
+                            for (_iF = 0; _iF < _lenF; _iF++) {
+
+                                if ((typeof filters[_keysF[_iF]]) === 'string' && filters[_keysF[_iF]].length === 0) {
+                                    continue;
+                                } else if (angular.isArray(filters[_keysF[_iF]])) {
+                                    _state = filters[_keysF[_iF]];
+                                } else if (angular.isObject(filters[_keysF[_iF]])) {
+                                    _state = _fnConvert(filters[_keysF[_iF]]);
+                                } else {
+                                    _state = {
+                                        field:    _keysF[_iF],
+                                        callback: filters[_keysF[_iF]]
+                                    };
+                                }
+                                _filter.push(_state);
+                            }
+                        }
+                        _state = null;
+                        return _filter;
+                    }
+                    else {
+                        return filters;
+                    }
+                },
+                _fnMain = function _fnMain(treeData, filters, _options) {
+                    if (!angular.isArray(treeData)
+                        || treeData.length === 0
+                        || !(angular.isArray(filters) || angular.isObject(filters))
+                        || filters.length === 0) {
+                        return treeData;
+                    }
+
+                    var _i, _len,
+                        _filter;
+
+                    _filter = _fnConvert(filters);
+                    if (!(angular.isArray(_filter) || angular.isObject(_filter))
+                        || _filter.length === 0) {
+                        return treeData;
+                    }
+                    _options.filter = _filter;
+                    for (_i = 0, _len = treeData.length; _i < _len; _i++) {
+                        for_all_descendants(
+                            _options,
+                            treeData[_i],
+                            '__children__',
+                            _fnBefore, _fnAfter
+                        );
+                    }
+
+                    return treeData;
+                };
+
+            return _fnMain;
+        }]
+).factory(
+    '$TreeDnDOrderBy', [
+        '$filter', function ($filter) {
+            var _fnOrderBy = $filter('orderBy'),
+                for_all_descendants = function for_all_descendants(options, node, name, fnOrderBy) {
+                    var _i, _len, _nodes;
+
+                    if (angular.isDefined(node[name])) {
+                        _nodes = node[name];
+                        _len = _nodes.length;
+                        // OrderBy children
+                        for (_i = 0; _i < _len; _i++) {
+                            _nodes[_i] = for_all_descendants(options, _nodes[_i], name, fnOrderBy);
+                        }
+
+                        node[name] = fnOrderBy(node[name], options);
+                    }
+                    return node;
+                },
+                _fnOrder = function _fnOrder(list, orderBy) {
+                    return _fnOrderBy(list, orderBy);
+                },
+                _fnMain = function _fnMain(treeData, orderBy) {
+                    if (!angular.isArray(treeData)
+                        || treeData.length === 0
+                        || !(angular.isArray(orderBy) || angular.isObject(orderBy) || angular.isString(orderBy) || angular.isFunction(orderBy))
+                        || (orderBy.length === 0 && !angular.isFunction(orderBy))) {
+                        return treeData;
+                    }
+
+                    var _i, _len,
+                        _iF, _lenF, _keysF;
+
+                    for (_i = 0, _len = treeData.length; _i < _len; _i++) {
+                        treeData[_i] = for_all_descendants(
+                            orderBy,
+                            treeData[_i],
+                            '__children__',
+                            _fnOrder
+                        );
+                    }
+
+                    treeData = _fnOrder(treeData, orderBy);
+                    return treeData;
+                };
+
+            return _fnMain;
+        }]
+).factory(
+    '$TreeDnDConvert', function () {
+        var _$initConvert = {
+            line2tree: function (data, primaryKey, parentKey) {
+                if (!data || data.length === 0 || !primaryKey || !parentKey) {
+                    return [];
+                }
+                var tree = [],
+                    rootIds = [],
+                    item = data[0],
+                    _primary = item[primaryKey],
+                    treeObjs = {},
+                    parentId, parent,
+                    len = data.length,
+                    i = 0;
+                while (i < len) {
+                    item = data[i++];
+                    _primary = item[primaryKey];
+                    treeObjs[_primary] = item;
+                    parentId = item[parentKey];
+                    if (parentId) {
+                        parent = treeObjs[parentId];
+                        if (parent.__children__) {
+                            parent.__children__.push(item);
+                        } else {
+                            parent.__children__ = [item];
+                        }
+                    } else {
+                        rootIds.push(_primary);
+                    }
+                }
+                len = rootIds.length;
+                for (i = 0; i < len; i++) {
+                    tree.push(treeObjs[rootIds[i]]);
+                }
+                return tree;
+            },
+            tree2tree: function (data, parentKey) {
+                var access_child = function (data) {
+                    var _tree = [];
+                    var _i, _len = data.length, _copy, _child;
+                    for (_i = 0; _i < _len; _i++) {
+                        _copy = angular.copy(data[_i]);
+                        if (angular.isArray(_copy[parentKey]) && _copy[parentKey].length > 0) {
+                            _child = access_child(_copy[parentKey]);
+                            delete(_copy[parentKey]);
+                            _copy.__children__ = _child;
+                        }
+                        _tree.push(_copy);
+                    }
+                    return _tree;
+                };
+
+                return access_child(data);
+            }
+        }
+
+        return _$initConvert;
+    }
+).factory(
+    '$TreeDnDHelper', [
+        '$document', '$window', function ($document, $window) {
+            var _$helper = {
+                nodrag:          function (targetElm) {
+                    return (typeof targetElm.attr('data-nodrag')) !== "undefined";
+                },
+                eventObj:        function (e) {
+                    var obj = e;
+                    if (e.targetTouches !== undefined) {
+                        obj = e.targetTouches.item(0);
+                    } else if (e.originalEvent !== undefined && e.originalEvent.targetTouches !== undefined) {
+                        obj = e.originalEvent.targetTouches.item(0);
+                    }
+                    return obj;
+                },
+                dragInfo:        function (scope) {
+                    var _node = scope.getData(),
+                        _tree = scope.getScopeTree(),
+                        _parent = scope.getNode(_node.__parent_real__);
+                    return {
+                        node:    _node,
+                        parent:  _parent,
+                        move:    {
+                            parent: _parent,
+                            pos:    _node.__index__
+                        },
+                        scope:   scope,
+                        target:  _tree,
+                        drag:    _tree,
+                        drop:    scope.getPrevSibling(_node),
+                        changed: false
+                    };
+                },
+                height:          function (element) {
+                    return element.prop('scrollHeight');
+                },
+                width:           function (element) {
+                    return element.prop('scrollWidth');
+                },
+                offset:          function (element) {
+                    var boundingClientRect = element[0].getBoundingClientRect();
+                    return {
+                        width:  element.prop('offsetWidth'),
+                        height: element.prop('offsetHeight'),
+                        top:    boundingClientRect.top + ($window.pageYOffset || $document[0].body.scrollTop || $document[0].documentElement.scrollTop),
+                        left:   boundingClientRect.left + ($window.pageXOffset || $document[0].body.scrollLeft || $document[0].documentElement.scrollLeft)
+                    };
+                },
+                positionStarted: function (e, target) {
+                    var pos = {};
+                    pos.offsetX = e.pageX - this.offset(target).left;
+                    pos.offsetY = e.pageY - this.offset(target).top;
+                    pos.startX = pos.lastX = e.pageX;
+                    pos.startY = pos.lastY = e.pageY;
+                    pos.nowX = pos.nowY = pos.distX = pos.distY = pos.dirAx = 0;
+                    pos.dirX = pos.dirY = pos.lastDirX = pos.lastDirY = pos.distAxX = pos.distAxY = 0;
+                    return pos;
+                },
+                positionMoved:   function (e, pos, firstMoving) {
+                    // mouse position last events
+                    pos.lastX = pos.nowX;
+                    pos.lastY = pos.nowY;
+                    // mouse position this events
+                    pos.nowX = e.pageX;
+                    pos.nowY = e.pageY;
+                    // distance mouse moved between events
+                    pos.distX = pos.nowX - pos.lastX;
+                    pos.distY = pos.nowY - pos.lastY;
+                    // direction mouse was moving
+                    pos.lastDirX = pos.dirX;
+                    pos.lastDirY = pos.dirY;
+                    // direction mouse is now moving (on both axis)
+                    pos.dirX = pos.distX === 0 ? 0 : pos.distX > 0 ? 1 : -1;
+                    pos.dirY = pos.distY === 0 ? 0 : pos.distY > 0 ? 1 : -1;
+                    // axis mouse is now moving on
+                    var newAx = Math.abs(pos.distX) > Math.abs(pos.distY) ? 1 : 0;
+                    // do nothing on first move
+                    if (firstMoving) {
+                        pos.dirAx = newAx;
+                        pos.moving = true;
+                        return;
+                    }
+                    // calc distance moved on this axis (and direction)
+                    if (pos.dirAx !== newAx) {
+                        pos.distAxX = 0;
+                        pos.distAxY = 0;
+                    } else {
+                        pos.distAxX += Math.abs(pos.distX);
+                        if (pos.dirX !== 0 && pos.dirX !== pos.lastDirX) {
+                            pos.distAxX = 0;
+                        }
+                        pos.distAxY += Math.abs(pos.distY);
+                        if (pos.dirY !== 0 && pos.dirY !== pos.lastDirY) {
+                            pos.distAxY = 0;
+                        }
+                    }
+                    pos.dirAx = newAx;
+                },
+                replaceIndent:   function (scope, element, indent, attr) {
+                    attr = attr ? attr : 'left';
+                    angular.element(element.children()[0]).css(attr, scope.$callbacks.calsIndent(indent));
+                }
+            };
+            return _$helper;
+        }]
+).factory(
+    '$TreeDnDPlugin',['$injector', function ($injector) {
+        var _fnget = function (name) {
+                if (angular.isDefined($injector) && $injector.has(name)) {
+                    return $injector.get(name);
+                }
+                return null;
+            };
+        return _fnget;
+    }]
+).factory(
+    '$TreeDnDTemplate', [
+        '$templateCache', function ($templateCache) {
+            var templatePath = 'template/TreeDnD/TreeDnD.html',
+                copyPath = 'template/TreeDnD/TreeDnDStatusCopy.html',
+                movePath = 'template/TreeDnD/TreeDnDStatusMove.html',
+                scopes = {},
+                temp,
+                _$init = {
+                    setMove: function (path, scope) {
+                        if (!scopes[scope.$id]) {
+                            scopes[scope.$id] = {};
+                        }
+                        scopes[scope.$id].movePath = path;
+                    },
+                    setCopy: function (path, scope) {
+                        if (!scopes[scope.$id]) {
+                            scopes[scope.$id] = {};
+                        }
+                        scopes[scope.$id].copyPath = path;
+                    },
+                    getPath: function () {
+                        return templatePath;
+                    },
+                    getCopy: function (scope) {
+                        if (scopes[scope.$id] && scopes[scope.$id].copyPath) {
+                            temp = $templateCache.get(scopes[scope.$id].copyPath);
+                            if (temp) {
+                                return temp;
+                            }
+                        }
+                        return $templateCache.get(copyPath);
+                    },
+                    getMove: function (scope) {
+                        if (scopes[scope.$id] && scopes[scope.$id].movePath) {
+                            temp = $templateCache.get(scopes[scope.$id].movePath);
+                            if (temp) {
+                                return temp;
+                            }
+                        }
+                        return $templateCache.get(movePath);
+                    }
+                };
+
+            return _$init;
+        }]
+).directive(
     'compile', [
         '$compile', function ($compile) {
             return {
@@ -220,6 +687,7 @@
                         $scope.$tree_class = 'table';
                         $scope.primary_key = '__uid__';
                         $scope.hasMultiSelect = $attrs.hasMultiSelect === 'true';
+                        $scope.onlyDeepestDrop = $attrs.onlyDeepestDrop === 'true';
 
                         $scope.$type = 'TreeDnD';
                         // $scope.enabledFilter = null;
@@ -1158,473 +1626,6 @@
             };
         }]
 ).factory(
-    '$TreeDnDFilter', [
-        '$filter', function ($filter) {
-            var _iF, _lenF, _keysF,
-                _filter,
-                _state,
-                for_all_descendants = function for_all_descendants(options, node, fieldChild, fnBefore, fnAfter, parentPassed) {
-                    if (!angular.isFunction(fnBefore)) {
-                        return null;
-                    }
-
-                    var _i, _len, _nodes,
-                        _nodePassed = fnBefore(options, node),
-                        _childPassed = false;
-
-                    if (angular.isDefined(node[fieldChild])) {
-                        _nodes = node[fieldChild];
-                        _len = _nodes.length;
-                        for (_i = 0; _i < _len; _i++) {
-                            _childPassed = for_all_descendants(
-                                options,
-                                _nodes[_i],
-                                fieldChild,
-                                fnBefore,
-                                fnAfter,
-                                _nodePassed || parentPassed
-                            ) || _childPassed;
-                        }
-                    }
-
-                    if (angular.isFunction(fnAfter)) {
-                        fnAfter(options, node, _nodePassed === true, _childPassed === true, parentPassed === true);
-                    }
-
-                    return _nodePassed || _childPassed;
-                },
-                // Check data by filter
-                _fnCheck = function _fnCheck(callback, check) {
-                    if (angular.isUndefinedOrNull(check) || angular.isArray(check)) {
-                        return null;
-                    }
-
-                    if (angular.isFunction(callback)) {
-                        return callback(check, $filter);
-                    } else {
-                        if (typeof callback === 'boolean') {
-                            check = !!check;
-                            return check === callback;
-                        } else if (angular.isDefined(callback)) {
-                            try {
-                                var _regex = new RegExp(callback);
-                                return _regex.test(check);
-                            }
-                            catch (err) {
-                                if (typeof check === 'string') {
-                                    return check.indexOf(callback) > -1;
-                                } else {
-                                    return null;
-                                }
-                            }
-                        } else {
-                            return null;
-                        }
-                    }
-                },
-                _fnProccess = function _fnProccess(node, condition, isAnd) {
-                    if (angular.isArray(condition)) {
-                        return for_each_filter(node, condition, isAnd);
-                    } else {
-                        var _key = condition.field,
-                            _callback = condition.callback,
-                            _iO, _keysO, _lenO;
-
-                        if (_key === '_$') {
-                            _keysO = Object.keys(node);
-                            _lenO = _keysO.length;
-                            for (_iO = 0; _iO < _lenO; _iO++) {
-                                if (_fnCheck(_callback, node[_keysO[_iO]])) {
-                                    return true;
-                                }
-                            }
-                        } else if (angular.isDefined(node[_key])) {
-                            return _fnCheck(_callback, node[_key]);
-                        }
-                    }
-                },
-                for_each_filter = function for_each_filter(node, conditions, isAnd) {
-                    var i, len = conditions.length, passed = false;
-                    if (len === 0) {
-                        return null;
-                    }
-
-                    for (i = 0; i < len; i++) {
-                        if (_fnProccess(node, conditions[i], !isAnd)) {
-                            passed = true;
-                            // if condition `or` then return;
-                            if (!isAnd) {
-                                return true;
-                            }
-                        } else {
-
-                            // if condition `and` and result in fnProccess = false then return;
-                            if (isAnd) {
-                                return false;
-                            }
-                        }
-                    }
-
-                    return passed;
-                },
-
-                // Will call _fnAfter to clear data no need
-                _fnAfter = function _fnAfter(options, node, isNodePassed, isChildPassed, isParentPassed) {
-                    if (isNodePassed === true) {
-                        node.__filtered__ = true;
-                        node.__filtered_visible__ = true;
-                        return; //jmp
-                    } else if ((isChildPassed === true && options.showParent === true)
-                               || (isParentPassed === true && options.showChild === true)) {
-                        node.__filtered__ = false;
-                        node.__filtered_visible__ = true;
-                        return; //jmp
-                    }
-
-                    // remove attr __filtered__
-                    delete(node.__filtered__);
-                    delete(node.__filtered_visible__);
-                },
-                _fnBefore = function _fnBefore(options, node) {
-                    if (options.filter.length === 0) {
-                        return true;
-                    } else {
-                        return _fnProccess(node, options.filter, options.beginAnd || false);
-                    }
-                },
-                _fnConvert = function _fnConvert(filters) {
-                    // convert filter object to array filter
-                    if (angular.isObject(filters) && !angular.isArray(filters)) {
-                        _keysF = Object.keys(filters);
-                        _lenF = _keysF.length;
-                        _filter = [];
-
-                        if (_lenF > 0) {
-                            for (_iF = 0; _iF < _lenF; _iF++) {
-
-                                if ((typeof filters[_keysF[_iF]]) === 'string' && filters[_keysF[_iF]].length === 0) {
-                                    continue;
-                                } else if (angular.isArray(filters[_keysF[_iF]])) {
-                                    _state = filters[_keysF[_iF]];
-                                } else if (angular.isObject(filters[_keysF[_iF]])) {
-                                    _state = _fnConvert(filters[_keysF[_iF]]);
-                                } else {
-                                    _state = {
-                                        field:    _keysF[_iF],
-                                        callback: filters[_keysF[_iF]]
-                                    };
-                                }
-                                _filter.push(_state);
-                            }
-                        }
-                        _state = null;
-                        return _filter;
-                    }
-                    else {
-                        return filters;
-                    }
-                },
-                _fnMain = function _fnMain(treeData, filters, _options) {
-                    if (!angular.isArray(treeData)
-                        || treeData.length === 0
-                        || !(angular.isArray(filters) || angular.isObject(filters))
-                        || filters.length === 0) {
-                        return treeData;
-                    }
-
-                    var _i, _len,
-                        _filter;
-
-                    _filter = _fnConvert(filters);
-                    if (!(angular.isArray(_filter) || angular.isObject(_filter))
-                        || _filter.length === 0) {
-                        return treeData;
-                    }
-                    _options.filter = _filter;
-                    for (_i = 0, _len = treeData.length; _i < _len; _i++) {
-                        for_all_descendants(
-                            _options,
-                            treeData[_i],
-                            '__children__',
-                            _fnBefore, _fnAfter
-                        );
-                    }
-
-                    return treeData;
-                };
-
-            return _fnMain;
-        }]
-).factory(
-    '$TreeDnDOrderBy', [
-        '$filter', function ($filter) {
-            var _fnOrderBy = $filter('orderBy'),
-                for_all_descendants = function for_all_descendants(options, node, name, fnOrderBy) {
-                    var _i, _len, _nodes;
-
-                    if (angular.isDefined(node[name])) {
-                        _nodes = node[name];
-                        _len = _nodes.length;
-                        // OrderBy children
-                        for (_i = 0; _i < _len; _i++) {
-                            _nodes[_i] = for_all_descendants(options, _nodes[_i], name, fnOrderBy);
-                        }
-
-                        node[name] = fnOrderBy(node[name], options);
-                    }
-                    return node;
-                },
-                _fnOrder = function _fnOrder(list, orderBy) {
-                    return _fnOrderBy(list, orderBy);
-                },
-                _fnMain = function _fnMain(treeData, orderBy) {
-                    if (!angular.isArray(treeData)
-                        || treeData.length === 0
-                        || !(angular.isArray(orderBy) || angular.isObject(orderBy) || angular.isString(orderBy) || angular.isFunction(orderBy))
-                        || (orderBy.length === 0 && !angular.isFunction(orderBy))) {
-                        return treeData;
-                    }
-
-                    var _i, _len,
-                        _iF, _lenF, _keysF;
-
-                    for (_i = 0, _len = treeData.length; _i < _len; _i++) {
-                        treeData[_i] = for_all_descendants(
-                            orderBy,
-                            treeData[_i],
-                            '__children__',
-                            _fnOrder
-                        );
-                    }
-
-                    treeData = _fnOrder(treeData, orderBy);
-                    return treeData;
-                };
-
-            return _fnMain;
-        }]
-).factory(
-    '$TreeDnDConvert', function () {
-        var _$initConvert = {
-            line2tree: function (data, primaryKey, parentKey) {
-                if (!data || data.length === 0 || !primaryKey || !parentKey) {
-                    return [];
-                }
-                var tree = [],
-                    rootIds = [],
-                    item = data[0],
-                    _primary = item[primaryKey],
-                    treeObjs = {},
-                    parentId, parent,
-                    len = data.length,
-                    i = 0;
-                while (i < len) {
-                    item = data[i++];
-                    _primary = item[primaryKey];
-                    treeObjs[_primary] = item;
-                    parentId = item[parentKey];
-                    if (parentId) {
-                        parent = treeObjs[parentId];
-                        if (parent.__children__) {
-                            parent.__children__.push(item);
-                        } else {
-                            parent.__children__ = [item];
-                        }
-                    } else {
-                        rootIds.push(_primary);
-                    }
-                }
-                len = rootIds.length;
-                for (i = 0; i < len; i++) {
-                    tree.push(treeObjs[rootIds[i]]);
-                }
-                return tree;
-            },
-            tree2tree: function (data, parentKey) {
-                var access_child = function (data) {
-                    var _tree = [];
-                    var _i, _len = data.length, _copy, _child;
-                    for (_i = 0; _i < _len; _i++) {
-                        _copy = angular.copy(data[_i]);
-                        if (angular.isArray(_copy[parentKey]) && _copy[parentKey].length > 0) {
-                            _child = access_child(_copy[parentKey]);
-                            delete(_copy[parentKey]);
-                            _copy.__children__ = _child;
-                        }
-                        _tree.push(_copy);
-                    }
-                    return _tree;
-                };
-
-                return access_child(data);
-            }
-        }
-
-        return _$initConvert;
-    }
-).factory(
-    '$TreeDnDHelper', [
-        '$document', '$window', function ($document, $window) {
-            var _$helper = {
-                nodrag:          function (targetElm) {
-                    return (typeof targetElm.attr('data-nodrag')) !== "undefined";
-                },
-                eventObj:        function (e) {
-                    var obj = e;
-                    if (e.targetTouches !== undefined) {
-                        obj = e.targetTouches.item(0);
-                    } else if (e.originalEvent !== undefined && e.originalEvent.targetTouches !== undefined) {
-                        obj = e.originalEvent.targetTouches.item(0);
-                    }
-                    return obj;
-                },
-                dragInfo:        function (scope) {
-                    var _node = scope.getData(),
-                        _tree = scope.getScopeTree(),
-                        _parent = scope.getNode(_node.__parent_real__);
-                    return {
-                        node:    _node,
-                        parent:  _parent,
-                        move:    {
-                            parent: _parent,
-                            pos:    _node.__index__
-                        },
-                        scope:   scope,
-                        target:  _tree,
-                        drag:    _tree,
-                        drop:    scope.getPrevSibling(_node),
-                        changed: false
-                    };
-                },
-                height:          function (element) {
-                    return element.prop('scrollHeight');
-                },
-                width:           function (element) {
-                    return element.prop('scrollWidth');
-                },
-                offset:          function (element) {
-                    var boundingClientRect = element[0].getBoundingClientRect();
-                    return {
-                        width:  element.prop('offsetWidth'),
-                        height: element.prop('offsetHeight'),
-                        top:    boundingClientRect.top + ($window.pageYOffset || $document[0].body.scrollTop || $document[0].documentElement.scrollTop),
-                        left:   boundingClientRect.left + ($window.pageXOffset || $document[0].body.scrollLeft || $document[0].documentElement.scrollLeft)
-                    };
-                },
-                positionStarted: function (e, target) {
-                    var pos = {};
-                    pos.offsetX = e.pageX - this.offset(target).left;
-                    pos.offsetY = e.pageY - this.offset(target).top;
-                    pos.startX = pos.lastX = e.pageX;
-                    pos.startY = pos.lastY = e.pageY;
-                    pos.nowX = pos.nowY = pos.distX = pos.distY = pos.dirAx = 0;
-                    pos.dirX = pos.dirY = pos.lastDirX = pos.lastDirY = pos.distAxX = pos.distAxY = 0;
-                    return pos;
-                },
-                positionMoved:   function (e, pos, firstMoving) {
-                    // mouse position last events
-                    pos.lastX = pos.nowX;
-                    pos.lastY = pos.nowY;
-                    // mouse position this events
-                    pos.nowX = e.pageX;
-                    pos.nowY = e.pageY;
-                    // distance mouse moved between events
-                    pos.distX = pos.nowX - pos.lastX;
-                    pos.distY = pos.nowY - pos.lastY;
-                    // direction mouse was moving
-                    pos.lastDirX = pos.dirX;
-                    pos.lastDirY = pos.dirY;
-                    // direction mouse is now moving (on both axis)
-                    pos.dirX = pos.distX === 0 ? 0 : pos.distX > 0 ? 1 : -1;
-                    pos.dirY = pos.distY === 0 ? 0 : pos.distY > 0 ? 1 : -1;
-                    // axis mouse is now moving on
-                    var newAx = Math.abs(pos.distX) > Math.abs(pos.distY) ? 1 : 0;
-                    // do nothing on first move
-                    if (firstMoving) {
-                        pos.dirAx = newAx;
-                        pos.moving = true;
-                        return;
-                    }
-                    // calc distance moved on this axis (and direction)
-                    if (pos.dirAx !== newAx) {
-                        pos.distAxX = 0;
-                        pos.distAxY = 0;
-                    } else {
-                        pos.distAxX += Math.abs(pos.distX);
-                        if (pos.dirX !== 0 && pos.dirX !== pos.lastDirX) {
-                            pos.distAxX = 0;
-                        }
-                        pos.distAxY += Math.abs(pos.distY);
-                        if (pos.dirY !== 0 && pos.dirY !== pos.lastDirY) {
-                            pos.distAxY = 0;
-                        }
-                    }
-                    pos.dirAx = newAx;
-                },
-                replaceIndent:   function (scope, element, indent, attr) {
-                    attr = attr ? attr : 'left';
-                    angular.element(element.children()[0]).css(attr, scope.$callbacks.calsIndent(indent));
-                }
-            };
-            return _$helper;
-        }]
-).factory(
-    '$TreeDnDPlugin',['$injector', function ($injector) {
-        var _fnget = function (name) {
-                if (angular.isDefined($injector) && $injector.has(name)) {
-                    return $injector.get(name);
-                }
-                return null;
-            };
-        return _fnget;
-    }]
-).factory(
-    '$TreeDnDTemplate', [
-        '$templateCache', function ($templateCache) {
-            var templatePath = 'template/TreeDnD/TreeDnD.html',
-                copyPath = 'template/TreeDnD/TreeDnDStatusCopy.html',
-                movePath = 'template/TreeDnD/TreeDnDStatusMove.html',
-                scopes = {},
-                temp,
-                _$init = {
-                    setMove: function (path, scope) {
-                        if (!scopes[scope.$id]) {
-                            scopes[scope.$id] = {};
-                        }
-                        scopes[scope.$id].movePath = path;
-                    },
-                    setCopy: function (path, scope) {
-                        if (!scopes[scope.$id]) {
-                            scopes[scope.$id] = {};
-                        }
-                        scopes[scope.$id].copyPath = path;
-                    },
-                    getPath: function () {
-                        return templatePath;
-                    },
-                    getCopy: function (scope) {
-                        if (scopes[scope.$id] && scopes[scope.$id].copyPath) {
-                            temp = $templateCache.get(scopes[scope.$id].copyPath);
-                            if (temp) {
-                                return temp;
-                            }
-                        }
-                        return $templateCache.get(copyPath);
-                    },
-                    getMove: function (scope) {
-                        if (scopes[scope.$id] && scopes[scope.$id].movePath) {
-                            temp = $templateCache.get(scopes[scope.$id].movePath);
-                            if (temp) {
-                                return temp;
-                            }
-                        }
-                        return $templateCache.get(movePath);
-                    }
-                };
-
-            return _$init;
-        }]
-).factory(
     '$TreeDnDDrag', [
         '$rootScope', '$timeout', '$TreeDnDHelper',
         function ($rootScope, $timeout, $TreeDnDHelper) {
@@ -2164,7 +2165,7 @@
                             }
                         } else {
                             // move horizontal
-                            if ($params.pos.dirAx && $params.pos.distAxX >= treeScope.dragBorder) {
+                            if ($params.pos.dirAx && $params.pos.distAxX >= treeScope.dragBorder && !treeScope.onlyDeepestDrop) {
                                 $params.pos.distAxX = 0;
                                 // increase horizontal level if previous sibling exists and is not collapsed
                                 if ($params.pos.distX > 0) {
@@ -2216,6 +2217,20 @@
                                         return;
                                     }
                                 } else {
+                                    return;
+                                }
+                            } else if (treeScope.onlyDeepestDrop) {
+                                _parent = _drop;
+                                if (!_parent) {
+                                    return;
+                                }
+                                if (_parent && _parent.__visible__) {
+                                    var _len = _parent.__children__.length;
+                                    _move.parent = _parent;
+                                    _move.pos = _len;
+                                    _drop = null;
+                                } else {
+                                    // Not changed
                                     return;
                                 }
                             } else {
