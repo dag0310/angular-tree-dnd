@@ -539,7 +539,7 @@ angular.module('ntt.TreeDnD')
                             }
                         } else {
                             // move horizontal
-                            if ($params.pos.dirAx && $params.pos.distAxX >= treeScope.dragBorder) {
+                            if ($params.pos.dirAx && $params.pos.distAxX >= treeScope.dragBorder && !treeScope.onlyDeepestDrop) {
                                 $params.pos.distAxX = 0;
                                 // increase horizontal level if previous sibling exists and is not collapsed
                                 if ($params.pos.distX > 0) {
@@ -591,6 +591,20 @@ angular.module('ntt.TreeDnD')
                                         return;
                                     }
                                 } else {
+                                    return;
+                                }
+                            } else if (treeScope.onlyDeepestDrop) {
+                                _parent = _drop;
+                                if (!_parent) {
+                                    return;
+                                }
+                                if (_parent && _parent.__visible__) {
+                                    var _len = _parent.__children__.length;
+                                    _move.parent = _parent;
+                                    _move.pos = _len;
+                                    _drop = null;
+                                } else {
+                                    // Not changed
                                     return;
                                 }
                             } else {
