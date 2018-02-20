@@ -1,16 +1,17 @@
 angular.module('ntt.TreeDnD')
     .factory(
     '$TreeDnDDrag', [
-        '$timeout', '$TreeDnDHelper',
-        function ($timeout, $TreeDnDHelper) {
+        '$rootScope', '$timeout', '$TreeDnDHelper',
+        function ($rootScope, $timeout, $TreeDnDHelper) {
             var _fnDragEnd;
             var holderWasShown = false;
             var nodesSelected = [];
             var lastSelectedNode = null;
 
-            var resetNodesSelected = function () {
+            $rootScope.resetNodesSelected = function () {
                 nodesSelected.forEach(function (node) { node.__selected = false; });
                 nodesSelected = [];
+                lastSelectedNode = null;
             };
 
             var _offset,
@@ -45,8 +46,8 @@ angular.module('ntt.TreeDnD')
                     //     return;
                     // }
 
+                    var currentNode = eventScope.$parent.$modelValue;
                     if (eventScope.$type !== 'TreeDnDNodeHandle') { // If the node has a handle, then it should be clicked by the handle
-                        var currentNode = eventScope.$parent.$modelValue;
                         if (eventScope.hasMultiSelect && currentNode && currentNode.parentId !== null) {
                             if (e.ctrlKey) {
                                 lastSelectedNode = currentNode;
@@ -58,7 +59,7 @@ angular.module('ntt.TreeDnD')
                                 var lowerIdx = lastSelectedNodeIdx < newSelectedNodeIdx ? lastSelectedNodeIdx : newSelectedNodeIdx;
                                 var higherIdx = lastSelectedNodeIdx > newSelectedNodeIdx ? lastSelectedNodeIdx : newSelectedNodeIdx;
 
-                                resetNodesSelected();
+                                $rootScope.resetNodesSelected();
 
                                 for (var idx = lowerIdx; idx <= higherIdx; idx++) {
                                     groupNodes[idx].__selected = true;
@@ -66,7 +67,7 @@ angular.module('ntt.TreeDnD')
                                 }
                             } else {
                                 lastSelectedNode = currentNode;
-                                resetNodesSelected();
+                                $rootScope.resetNodesSelected();
                                 currentNode.__selected = true;
                             }
 
@@ -77,6 +78,9 @@ angular.module('ntt.TreeDnD')
                             }
                         }
                         return;
+                    }
+                    if (!nodesSelected.includes(currentNode)) {
+                        $rootScope.resetNodesSelected();
                     }
 
                     var eventElmTagName = eventElm.prop('tagName').toLowerCase(),
@@ -711,7 +715,7 @@ angular.module('ntt.TreeDnD')
                             _$scope.$safeApply(
                                 function () {
                                     $params.dragInfo.__multipleNodes = nodesSelected;
-                                    resetNodesSelected();
+                                    $rootScope.resetNodesSelected();
 
                                     _status = _$scope.$callbacks.dropped(
                                         $params.dragInfo,
