@@ -11,6 +11,7 @@ angular.module('ntt.TreeDnD')
             var resetNodesSelected = function () {
                 nodesSelected.forEach(function (node) { node.__selected = false; });
                 nodesSelected = [];
+                lastSelectedNode = null;
             };
 
             var _offset,
