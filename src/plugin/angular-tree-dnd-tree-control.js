@@ -1,6 +1,6 @@
 angular.module('ntt.TreeDnD')
     .factory(
-    '$TreeDnDControl', function () {
+    '$TreeDnDControl', function ($rootScope) {
         var _target, _parent,
             i, len,
             fnSetCollapse = function fnSetCollapse(node) {
@@ -278,6 +278,9 @@ angular.module('ntt.TreeDnD')
                                 return tree.select_node(_target);
                             }
                         }
+                    },
+                    reset_selected_nodes:                  function (node) {
+                        $rootScope.resetNodesSelected();
                     }
                 };
                 angular.extend(scope.tree, tree);
