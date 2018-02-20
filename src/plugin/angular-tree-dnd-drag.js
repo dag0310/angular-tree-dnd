@@ -46,8 +46,8 @@ angular.module('ntt.TreeDnD')
                     //     return;
                     // }
 
+                    var currentNode = eventScope.$parent.$modelValue;
                     if (eventScope.$type !== 'TreeDnDNodeHandle') { // If the node has a handle, then it should be clicked by the handle
-                        var currentNode = eventScope.$parent.$modelValue;
                         if (eventScope.hasMultiSelect && currentNode && currentNode.parentId !== null) {
                             if (e.ctrlKey) {
                                 lastSelectedNode = currentNode;
@@ -78,6 +78,9 @@ angular.module('ntt.TreeDnD')
                             }
                         }
                         return;
+                    }
+                    if (!nodesSelected.includes(currentNode)) {
+                        $rootScope.resetNodesSelected();
                     }
 
                     var eventElmTagName = eventElm.prop('tagName').toLowerCase(),
