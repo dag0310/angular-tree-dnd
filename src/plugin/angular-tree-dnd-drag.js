@@ -60,17 +60,19 @@ angular.module('ntt.TreeDnD')
                                 var higherIdx = lastSelectedNodeIdx > newSelectedNodeIdx ? lastSelectedNodeIdx : newSelectedNodeIdx;
 
                                 $rootScope.resetNodesSelected();
+                                lastSelectedNode = groupNodes[lastSelectedNodeIdx]
 
                                 for (var idx = lowerIdx; idx <= higherIdx; idx++) {
                                     groupNodes[idx].__selected = true;
                                     nodesSelected.push(groupNodes[idx]);
                                 }
                             } else {
-                                lastSelectedNode = currentNode;
                                 $rootScope.resetNodesSelected();
+                                lastSelectedNode = currentNode;
                                 currentNode.__selected = true;
                             }
 
+                            // Add or remove the current node from selected nodes
                             if (nodesSelected.every(function (node) { return node !== currentNode; }) && currentNode.__selected) {
                                 nodesSelected.push(currentNode);
                             } else if (nodesSelected.includes(currentNode) && !currentNode.__selected) {
