@@ -1,3 +1,7 @@
+## 3.2.4
+  * Bugfix:
+    * Fix Shift-select regression
+
 ## 3.2.2
   * Added:
     * Add option to only allow dropping ISSIs inside group directly in front of drop-placeholder
