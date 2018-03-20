@@ -539,6 +539,18 @@ angular.module('ntt.TreeDnD')
                                     _drop = _target;
                                 }
                             }
+
+                            if (treeScope.onlyDeepestDrop && _drop) {
+                                _parent = _drop;
+                                if (_parent && _parent.__visible__) {
+                                    var _len = _parent.__children__.length;
+                                    _move.parent = _parent;
+                                    _move.pos = _len;
+                                    _drop = null;
+                                } else {
+                                    return;
+                                }
+                            }
                         } else {
                             // move horizontal
                             if ($params.pos.dirAx && $params.pos.distAxX >= treeScope.dragBorder && !treeScope.onlyDeepestDrop) {
