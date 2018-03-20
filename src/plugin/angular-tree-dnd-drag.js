@@ -539,21 +539,9 @@ angular.module('ntt.TreeDnD')
                                     _drop = _target;
                                 }
                             }
-
-                            if (treeScope.onlyDeepestDrop && _drop) {
-                                _parent = _drop;
-                                if (_parent && _parent.__visible__) {
-                                    var _len = _parent.__children__.length;
-                                    _move.parent = _parent;
-                                    _move.pos = _len;
-                                    _drop = null;
-                                } else {
-                                    return;
-                                }
-                            }
                         } else {
                             // move horizontal
-                            if ($params.pos.dirAx && $params.pos.distAxX >= treeScope.dragBorder && !treeScope.onlyDeepestDrop) {
+                            if ($params.pos.dirAx && $params.pos.distAxX >= treeScope.dragBorder) {
                                 $params.pos.distAxX = 0;
                                 // increase horizontal level if previous sibling exists and is not collapsed
                                 if ($params.pos.distX > 0) {
@@ -607,18 +595,20 @@ angular.module('ntt.TreeDnD')
                                 } else {
                                     return;
                                 }
-                            } else if (treeScope.onlyDeepestDrop) {
-                                _parent = _drop;
-                                if (_parent && _parent.__visible__) {
-                                    var _len = _parent.__children__.length;
-                                    _move.parent = _parent;
-                                    _move.pos = _len;
-                                    _drop = null;
-                                } else {
-                                    return;
-                                }
                             } else {
                                 // limited
+                                return;
+                            }
+                        }
+
+                        if (treeScope.onlyDeepestDrop && _drop) {
+                            _parent = _drop;
+                            if (_parent && _parent.__visible__) {
+                                var _len = _parent.__children__.length;
+                                _move.parent = _parent;
+                                _move.pos = _len;
+                                _drop = null;
+                            } else {
                                 return;
                             }
                         }
