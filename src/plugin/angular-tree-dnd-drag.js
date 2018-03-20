@@ -597,16 +597,12 @@ angular.module('ntt.TreeDnD')
                                 }
                             } else if (treeScope.onlyDeepestDrop) {
                                 _parent = _drop;
-                                if (!_parent) {
-                                    return;
-                                }
                                 if (_parent && _parent.__visible__) {
                                     var _len = _parent.__children__.length;
                                     _move.parent = _parent;
                                     _move.pos = _len;
                                     _drop = null;
                                 } else {
-                                    // Not changed
                                     return;
                                 }
                             } else {
