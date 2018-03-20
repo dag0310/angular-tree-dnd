@@ -369,7 +369,7 @@ angular.module('ntt.TreeDnD')
                         tagName,
                         isTable,
                         isChanged = true,
-                        isVeritcal = true,
+                        isVertical = true,
                         isEmpty,
                         isSwapped,
                         _scope,
@@ -470,7 +470,7 @@ angular.module('ntt.TreeDnD')
                     }
 
                     if ($params.pos.dirAx && !isSwapped || isHolder) {
-                        isVeritcal = false;
+                        isVertical = false;
                         targetScope = _info.scope;
                     }
 
@@ -487,7 +487,7 @@ angular.module('ntt.TreeDnD')
                         _drop = null;
                     } else {
                         // move vertical
-                        if (isVeritcal) {
+                        if (isVertical) {
                             targetElm = targetScope.$element; // Get the element of tree-dnd-node
 
                             targetOffset = $TreeDnDHelper.offset(targetElm);
