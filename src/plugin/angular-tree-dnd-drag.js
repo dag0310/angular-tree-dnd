@@ -384,6 +384,7 @@ angular.module('ntt.TreeDnD')
                         isHolder = _fnPlaceHolder(e, $params);
 
                     if (!isHolder) {
+                        $params.dragInfo.__abortDrag = true;
                         /* when using elementFromPoint() inside an iframe, you have to call
                              elementFromPoint() twice to make sure IE8 returns the correct value
                              $params.$window.document.elementFromPoint(targetX, targetY);*/
@@ -424,12 +425,12 @@ angular.module('ntt.TreeDnD')
                         };
 
                         var abortDrag = function () {
+                            $params.dragInfo.__abortDrag = true;
                             holderWasShown = false;
                             if (_$scope.enabledStatus) {
                                 _$scope.hideStatus();
                             }
                             _$scope.$$apply = false;
-                            _fnDragEnd(e, $params);
                         };
 
                         if (angular.isFunction(targetScope.getScopeNode)) {
@@ -467,6 +468,7 @@ angular.module('ntt.TreeDnD')
                         }
                     } else {
                         holderWasShown = true;
+                        $params.dragInfo.__abortDrag = false;
                     }
 
                     if ($params.pos.dirAx && !isSwapped || isHolder) {
@@ -729,11 +731,13 @@ angular.module('ntt.TreeDnD')
                                     $params.dragInfo.__multipleNodes = nodesSelected;
                                     $rootScope.resetNodesSelected();
 
-                                    _status = _$scope.$callbacks.dropped(
-                                        $params.dragInfo,
-                                        _passed,
-                                        _$scope.enabledMove
-                                    );
+                                    if (!$params.dragInfo.__abortDrag) {
+                                        _status = _$scope.$callbacks.dropped(
+                                            $params.dragInfo,
+                                            _passed,
+                                            _$scope.enabledMove
+                                        );
+                                    }
                                 }
                             );
                         } else {
