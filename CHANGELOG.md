@@ -1,3 +1,8 @@
+## 3.2.5
+  * Bugfix:
+    * Fix drag flickering
+    * Fix/improve drag abort mechanism
+
 ## 3.2.4
   * Bugfix:
     * Fix Shift-select regression
